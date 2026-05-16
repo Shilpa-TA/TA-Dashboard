@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Live Recruitment Dashboard</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 1.5rem;
+    }
+    
+    .container {
+      max-width: 1600px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 16px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    }
+    
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 2rem;
+      text-align: center;
+    }
+    
+    .header h1 { font-size: 28px; font-weight: 600; margin-bottom: 0.5rem; }
+    .header p { opacity: 0.9; font-size: 14px; }
+    
+    .controls {
+      display: flex;
+      gap: 12px;
+      padding: 1.5rem 2rem;
+      background: #f8f9fa;
+      flex-wrap: wrap;
+      border-bottom: 1px solid #e0e0e0;
+    }
+    
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    
+    .control-group label {
+      font-size: 12px;
+      font-weight: 600;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    select, input {
+      padding: 10px 12px;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      font-size: 14px;
+      min-width: 150px;
+    }
+    
+    select:focus, input:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    
+    button {
+      padding: 10px 20px;
+      background: #667eea;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: all 0.3s;
+      align-self: flex-end;
+    }
+    
+    button:hover { background: #5568d3; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3); }
+    
+    .content {
+      padding: 2rem;
+    }
+    
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 2rem;
+    }
+    
+    .metric-card {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 1.5rem;
+      border-radius: 12px;
+      text-align: center;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      transition: transform 0.3s;
+    }
+    
+    .metric-card:hover { transform: translateY(-4px); }
+    
+    .metric-label { font-size: 12px; opacity: 0.8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+    .metric-value { font-size: 32px; font-weight: 700; }
+    .metric-detail { font-size: 12px; opacity: 0.7; margin-top: 4px; }
+    
+    .charts-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+    
+    .chart-container {
+      background: #f8f9fa;
+      padding: 1.5rem;
+      border-radius: 12px;
+      border: 1px solid #e0e0e0;
+    }
+    
+    .chart-title { font-size: 16px; font-weight: 600; margin-bottom: 1rem; color: #333; }
+    
+    .canvas-wrapper { position: relative; width: 100%; height: 300px; }
+    
+    .table-container {
+      background: white;
+      border: 1px solid #e0e0e0;
+      border-radius: 12px;
+      overflow: hidden;
+      margin-bottom: 2rem;
+    }
+    
+    .table-header {
+      background: #f8f9fa;
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid #e0e0e0;
+      font-weight: 600;
+      color: #333;
+    }
+    
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    
+    th {
+      background: #f8f9fa;
+      padding: 12px;
+      text-align: left;
+      font-weight: 600;
+      color: #666;
+      border-bottom: 1px solid #e0e0e0;
+    }
+    
+    td {
+      padding: 12px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    
+    tbody tr:hover { background: #f8f9fa; }
+    
+    .status-badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-weight: 500;
+      font-size: 11px;
+    }
+    
+    .status-open { background: #d4edda; color: #155724; }
+    .status-filled { background: #d1ecf1; color: #0c5460; }
+    .status-offered { background: #fff3cd; color: #856404; }
+    .status-tbo { background: #f8d7da; color: #721c24; }
+    .status-cancelled { background: #e2e3e5; color: #383d41; }
+    
+    .loading {
+      text-align: center;
+      padding: 2rem;
+      color: #667eea;
+      font-weight: 500;
+    }
+    
+    .error {
+      background: #f8d7da;
+      color: #721c24;
+      padding: 1rem;
+      border-radius: 6px;
+      margin-bottom: 1rem;
+    }
+    
+    .message {
+      text-align: center;
+      padding: 1rem;
+      margin: 1rem 0;
+      border-radius: 6px;
+      display: none;
+    }
+    
+    .message.success {
+      background: #d4edda;
+      color: #155724;
+      display: block;
+    }
+    
+    @media (max-width: 768px) {
+      .charts-grid { grid-template-columns: 1fr; }
+      .controls { flex-direction: column; }
+      .metric-card { padding: 1rem; }
+      .metric-value { font-size: 24px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <div class="header">
+    <h1>📊 Live Recruitment Dashboard</h1>
+    <p>Real-time tracking of all recruitment activities across business units</p>
+  </div>
+  
+  <div class="controls">
+    <div class="control-group">
+      <label>Business Unit</label>
+      <select id="buFilter" onchange="applyFilters()">
+        <option value="">All BUs</option>
+        <option value="New Auto">New Auto</option>
+        <option value="Non Auto">Non Auto</option>
+        <option value="Rupyy">Rupyy</option>
+        <option value="Used Car">Used Car</option>
+        <option value="Corp/Shared">Corp/Shared</option>
+      </select>
+    </div>
+    
+    <div class="control-group">
+      <label>Status</label>
+      <select id="statusFilter" onchange="applyFilters()">
+        <option value="">All Status</option>
+        <option value="Open">Open</option>
+        <option value="Filled">Filled</option>
+        <option value="Offered">Offered</option>
+        <option value="TBO">TBO</option>
+        <option value="Cancelled">Cancelled</option>
+      </select>
+    </div>
+    
+    <div class="control-group">
+      <label>Department/Span</label>
+      <select id="deptFilter" onchange="applyFilters()">
+        <option value="">All Departments</option>
+      </select>
+    </div>
+    
+    <div class="control-group">
+      <label>Recruiter</label>
+      <select id="recruiterFilter" onchange="applyFilters()">
+        <option value="">All Recruiters</option>
+      </select>
+    </div>
+    
+    <button onclick="refreshData()">🔄 Refresh Data</button>
+  </div>
+  
+  <div class="content">
+    <div id="message" class="message"></div>
+    
+    <div class="metrics-grid">
+      <div class="metric-card">
+        <div class="metric-label">Total Open</div>
+        <div class="metric-value" id="totalOpen">-</div>
+        <div class="metric-detail" id="openDetail"></div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Total Filled</div>
+        <div class="metric-value" id="totalFilled">-</div>
+        <div class="metric-detail" id="filledDetail"></div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Total Offered</div>
+        <div class="metric-value" id="totalLeads">-</div>
+        <div class="metric-detail" id="leadsDetail"></div>
+      </div>
+      <div class="metric-card">
+        <div class="metric-label">Budget Allocated</div>
+        <div class="metric-value" id="budgetAlloc">-</div>
+        <div class="metric-detail" id="budgetDetail"></div>
+      </div>
+    </div>
+    
+    <div class="charts-grid">
+      <div class="chart-container">
+        <div class="chart-title">Positions by Status</div>
+        <div class="canvas-wrapper">
+          <canvas id="statusChart" role="img" aria-label="Distribution of positions by status"></canvas>
+        </div>
+      </div>
+      
+      <div class="chart-container">
+        <div class="chart-title">Open Positions by BU</div>
+        <div class="canvas-wrapper">
+          <canvas id="buChart" role="img" aria-label="Open positions by business unit"></canvas>
+        </div>
+      </div>
+      
+      <div class="chart-container">
+        <div class="chart-title">Positions by Department</div>
+        <div class="canvas-wrapper">
+          <canvas id="deptChart" role="img" aria-label="Open positions by department"></canvas>
+        </div>
+      </div>
+      
+      <div class="chart-container">
+        <div class="chart-title">Recruiter Performance</div>
+        <div class="canvas-wrapper">
+          <canvas id="recruiterChart" role="img" aria-label="Filled positions by recruiter"></canvas>
+        </div>
+      </div>
+    </div>
+    
+    <div class="table-container">
+      <div class="table-header">Active Requisitions</div>
+      <table>
+        <thead>
+          <tr>
+            <th>Req Code</th>
+            <th>Position</th>
+            <th>BU</th>
+            <th>Span</th>
+            <th>Status</th>
+            <th>Leads</th>
+            <th>Budget Range</th>
+            <th>Source</th>
+            <th>Stage</th>
+          </tr>
+        </thead>
+        <tbody id="tableBody">
+          <tr><td colspan="9" class="loading">Loading recruitment data...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<script>
+// Configuration - Points to your actual Google Sheet
+const SHEET_ID = '1myL8VYT_oivDdqBfZO6A6AsC1clzGxvX7wUBALZzgXM';
+const CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&gid=0`;
+const UPDATE_INTERVAL = 300000; // 5 minutes
+
+let allData = [];
+let charts = {};
+
+// Column mapping for your actual sheet - CORRECTED
+const COLUMN_MAP = {
+  reqCode: 'Req Code',
+  dbJobId: 'DB Job ID',
+  bu: 'Business Unit',
+  span: 'Span',
+  designation: 'Designation',
+  status: 'Vacancy Status\n(Open/Filled/Offered/TBO/Cancelled)',
+  finalStatus: 'Final Status\n(Open/Filled)',
+  source: 'Source',
+  stage: 'Interview Stage',
+  budgetMin: 'Min Budget',
+  budgetMax: 'Max Budget',
+  openDate: 'Vacancy assigned date',
+  recruiter: 'Recruiter Name'
+};
+
+async function fetchData() {
+  try {
+    showMessage('Fetching recruitment data...', 'info');
+    
+    const response = await fetch(CSV_URL);
+    const csv = await response.text();
+    allData = parseCSV(csv);
+    
+    if (allData.length === 0) {
+      showMessage('No data found. Ensure sheet is publicly accessible.', 'error');
+      return;
+    }
+    
+    updateAllFilters();
+    applyFilters();
+    showMessage(`✓ Loaded ${allData.length} recruitment records`, 'success');
+    
+  } catch (error) {
+    showMessage(`Error loading data: ${error.message}`, 'error');
+    console.error('Fetch error:', error);
+  }
+}
+
+function parseCSV(csv) {
+  const lines = csv.split('\n').filter(l => l.trim());
+  if (lines.length < 2) return [];
+  
+  const headers = lines[0].split(',').map(h => h.trim().replace(/"/g, ''));
+  const data = [];
+  
+  for (let i = 1; i < lines.length; i++) {
+    const values = lines[i].split(',');
+    const obj = {};
+    
+    headers.forEach((h, idx) => {
+      obj[h] = values[idx] ? values[idx].trim().replace(/"/g, '') : '';
+    });
+    
+    if (obj['Req Code'] && obj['Req Code'] !== 'Req Code') {
+      data.push(obj);
+    }
+  }
+  
+  return data;
+}
+
+function updateAllFilters() {
+  const depts = [...new Set(allData
+    .map(d => d['Span'])
+    .filter(d => d && d.length > 0)
+  )].sort();
+  
+  const recruiters = [...new Set(allData
+    .map(d => d['Recruiter Name'])
+    .filter(d => d && d.length > 0)
+  )].sort();
+  
+  const deptSelect = document.getElementById('deptFilter');
+  deptSelect.innerHTML = '<option value="">All Departments</option>';
+  depts.forEach(d => {
+    const opt = document.createElement('option');
+    opt.value = d;
+    opt.textContent = d;
+    deptSelect.appendChild(opt);
+  });
+  
+  const recruiterSelect = document.getElementById('recruiterFilter');
+  recruiterSelect.innerHTML = '<option value="">All Recruiters</option>';
+  recruiters.forEach(r => {
+    const opt = document.createElement('option');
+    opt.value = r;
+    opt.textContent = r;
+    recruiterSelect.appendChild(opt);
+  });
+}
+
+function applyFilters() {
+  const buFilter = document.getElementById('buFilter').value;
+  const statusFilter = document.getElementById('statusFilter').value;
+  const deptFilter = document.getElementById('deptFilter').value;
+  const recruiterFilter = document.getElementById('recruiterFilter').value;
+  
+  let filtered = allData;
+  
+  if (buFilter) filtered = filtered.filter(d => d['Business Unit'] === buFilter);
+  if (statusFilter) filtered = filtered.filter(d => d['Vacancy Status\n(Open/Filled/Offered/TBO/Cancelled)'] === statusFilter);
+  if (deptFilter) filtered = filtered.filter(d => d['Span'] === deptFilter);
+  if (recruiterFilter) filtered = filtered.filter(d => d['Recruiter Name'] === recruiterFilter);
+  
+  updateMetrics(filtered);
+  updateCharts(filtered);
+  renderTable(filtered);
+}
+
+function updateMetrics(data) {
+  const open = data.filter(d => d['Vacancy Status\n(Open/Filled/Offered/TBO/Cancelled)'] === 'Open').length;
+  const filled = data.filter(d => d['Vacancy Status\n(Open/Filled/Offered/TBO/Cancelled)'] === 'Filled').length;
+  const offered = data.filter(d => d['Vacancy Status\n(Open/Filled/Offered/TBO/Cancelled)'] === 'Offered').length;
+  const budget = data.reduce((sum, d) => sum + (parseInt(d['Max Budget']) || 0), 0);
+  
+  document.getElementById('totalOpen').textContent = open;
+  document.getElementById('totalFilled').textContent = filled;
+  document.getElementById('totalLeads').textContent = offered;
+  document.getElementById('budgetAlloc').textContent = '₹' + (budget / 10000000).toFixed(1) + 'Cr';
+  
+  document.getElementById('openDetail').textContent = `${filled} filled`;
+  document.getElementById('filledDetail').textContent = `${open} open`;
+  document.getElementById('leadsDetail').textContent = `${offered} offered`;
+  document.getElementById('budgetDetail').textContent = `₹${(budget / 1000000).toFixed(1)}M`;
+}
+
+function updateCharts(data) {
+  // Status distribution
+  const statusCounts = { Open: 0, Filled: 0, Offered: 0, TBO: 0, Cancelled: 0 };
+  data.forEach(d => {
+    const status = d['Vacancy Status\n(Open/Filled/Offered/TBO/Cancelled)'];
+    if (statusCounts.hasOwnProperty(status)) {
+      statusCounts[status]++;
+    }
+  });
+  
+  if (charts.status) charts.status.destroy();
+  charts.status = new Chart(document.getElementById('statusChart'), {
+    type: 'doughnut',
+    data: {
+      labels: Object.keys(statusCounts),
+      datasets: [{
+        data: Object.values(statusCounts),
+        backgroundColor: ['#667eea', '#764ba2', '#f093fb', '#4facfe', '#999']
+      }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom' } } }
+  });
+  
+  // BU distribution
+  const buCounts = {};
+  [...new Set(data.map(d => d['Business Unit']))].forEach(bu => {
+    buCounts[bu] = data.filter(d => d['Business Unit'] === bu && d['Vacancy Status\n(Open/Filled/Offered/TBO/Cancelled)'] === 'Open').length;
+  });
+  
+  if (charts.bu) charts.bu.destroy();
+  charts.bu = new Chart(document.getElementById('buChart'), {
+    type: 'bar',
+    data: {
+      labels: Object.keys(buCounts),
+      datasets: [{ label: 'Open Positions', data: Object.values(buCounts), backgroundColor: '#667eea' }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } }, plugins: { legend: { display: false } } }
+  });
+  
+  // Department distribution
+  const deptCounts = {};
+  [...new Set(data.map(d => d['Span']))].forEach(d => {
+    if (d) deptCounts[d] = data.filter(x => x['Span'] === d).length;
+  });
+  
+  if (charts.dept) charts.dept.destroy();
+  charts.dept = new Chart(document.getElementById('deptChart'), {
+    type: 'bar',
+    data: {
+      labels: Object.keys(deptCounts).slice(0, 8),
+      datasets: [{ label: 'Positions', data: Object.values(deptCounts).slice(0, 8), backgroundColor: '#764ba2' }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } }, plugins: { legend: { display: false } }, indexAxis: 'y' }
+  });
+  
+  // Recruiter performance
+  const recruiterCounts = {};
+  [...new Set(data.map(d => d['Recruiter Name']))].forEach(r => {
+    if (r) recruiterCounts[r] = data.filter(d => d['Recruiter Name'] === r && d['Vacancy Status\n(Open/Filled/Offered/TBO/Cancelled)'] === 'Filled').length;
+  });
+  
+  if (charts.recruiter) charts.recruiter.destroy();
+  charts.recruiter = new Chart(document.getElementById('recruiterChart'), {
+    type: 'bar',
+    data: {
+      labels: Object.keys(recruiterCounts),
+      datasets: [{ label: 'Filled', data: Object.values(recruiterCounts), backgroundColor: '#f093fb' }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } }, plugins: { legend: { display: false } } }
+  });
+}
+
+function renderTable(data) {
+  const tbody = document.getElementById('tableBody');
+  
+  if (data.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; padding: 2rem;">No records found</td></tr>';
+    return;
+  }
+  
+  tbody.innerHTML = data.slice(0, 50).map(row => `
+    <tr>
+      <td><strong>${row['Req Code'] || '-'}</strong></td>
+      <td>${row['Designation'] || '-'}</td>
+      <td>${row['Business Unit'] || '-'}</td>
+      <td>${row['Span'] || '-'}</td>
+      <td><span class="status-badge status-${(row['Vacancy Status\n(Open/Filled/Offered/TBO/Cancelled)'] || 'open').toLowerCase().replace(/ /g, '-')}">${row['Vacancy Status\n(Open/Filled/Offered/TBO/Cancelled)'] || '-'}</span></td>
+      <td>${row['Source'] || '-'}</td>
+      <td>₹${(parseInt(row['Min Budget']) || 0).toLocaleString()} - ₹${(parseInt(row['Max Budget']) || 0).toLocaleString()}</td>
+      <td>${row['Source'] || '-'}</td>
+      <td>${row['Recruiter Name'] || '-'}</td>
+    </tr>
+  `).join('');
+}
+
+function refreshData() {
+  fetchData();
+}
+
+function showMessage(msg, type) {
+  const el = document.getElementById('message');
+  el.textContent = msg;
+  el.className = `message ${type}`;
+  if (type === 'success') {
+    setTimeout(() => { el.className = 'message'; }, 3000);
+  }
+}
+
+// Initial load
+fetchData();
+
+// Auto-refresh every 5 minutes
+setInterval(fetchData, UPDATE_INTERVAL);
+</script>
+
+</body>
+</html>
